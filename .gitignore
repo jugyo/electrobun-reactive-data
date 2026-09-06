@@ -1,0 +1,16 @@
+node_modules/
+.hutch/
+.cottontail-tmp/
+dist/
+build/
+artifacts/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+*.pem
+*.key
