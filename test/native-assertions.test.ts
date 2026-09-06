@@ -19,6 +19,11 @@ test("Todo assertions reject stale views, rollback invalidation, and missing per
   const persisted = snapshot(persistedTodos);
   const stages = {
     afterAdd: pair([{ title: "new", done: 0 }]),
+    subscriptionError: {
+      status: "error",
+      error: "Injected subscription failure",
+    },
+    subscriptionRecovered: snapshot([{ title: "new", done: 0 }]),
     afterToggle: pair([{ title: "new", done: 1 }]),
     afterDelete: pair([]),
     filters: [

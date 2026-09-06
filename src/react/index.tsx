@@ -6,7 +6,11 @@ import {
   useSyncExternalStore,
   type PropsWithChildren,
 } from "react";
-import { LiveQueryRuntime, type LiveQuerySnapshot } from "../client/core.js";
+import {
+  LiveQueryRuntime,
+  queryKey,
+  type LiveQuerySnapshot,
+} from "../client/core.js";
 import type { QueryFunction } from "../client/index.js";
 const Context = createContext<LiveQueryRuntime | null>(null);
 export function ReactiveDataProvider({
@@ -23,7 +27,7 @@ export function useLiveQuery<P, R>(
   const runtime = useContext(Context);
   if (!runtime)
     throw new Error("useLiveQuery must be used inside ReactiveDataProvider");
-  const key = JSON.stringify(params);
+  const key = queryKey(params);
   const instance = useMemo(
     () => runtime.getInstance(query.queryId, query, params),
     [runtime, query, key],

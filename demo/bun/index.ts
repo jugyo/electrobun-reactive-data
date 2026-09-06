@@ -184,6 +184,12 @@ async function runNativeAcceptance(
     );
     await Bun.sleep(500);
     (evidence.stages as any).afterAdd = await snapshots(first, second);
+    await command(first, "window.__erdNativeSmoke.failSubscription()");
+    await Bun.sleep(300);
+    (evidence.stages as any).subscriptionError = await snapshot(first);
+    await command(first, "await window.__erdNativeSmoke.recoverSubscription()");
+    await Bun.sleep(300);
+    (evidence.stages as any).subscriptionRecovered = await snapshot(first);
     await command(second, "await window.__erdNativeSmoke.toggleFirst()");
     await Bun.sleep(500);
     (evidence.stages as any).afterToggle = await snapshots(first, second);

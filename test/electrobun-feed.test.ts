@@ -95,6 +95,62 @@ const handlers = () => {
 };
 
 describe("ElectrobunFeed", () => {
+  test("query recovery wraps connection failures with a public transport code", async () => {
+    const fake = fakeRpc();
+    const feed = new ElectrobunFeed(fake.rpc);
+    feed.start(handlers().value);
+    fake.connects[0]!.resolve({ ok: true, value: { session: "s1" } });
+    await Bun.sleep(0);
+    fake.invokeResults.push(
+      Promise.resolve({
+        ok: false,
+        error: { code: "STALE_SESSION", message: "stale" },
+      }),
+    );
+    const result = feed
+      .invoke("query", "todos", {})
+      .catch((error: unknown) => error);
+    await Bun.sleep(0);
+    fake.connects[1]!.reject(new Error("offline"));
+    expect(await result).toMatchObject({
+      name: "ReactiveDataError",
+      code: "TRANSPORT",
+      message: "offline",
+    });
+    feed.stop();
+  });
+
+  test("stale subscription reports once and ignores older-generation failures", async () => {
+    const fake = fakeRpc();
+    const events = handlers();
+    const feed = new ElectrobunFeed(fake.rpc);
+    feed.start(events.value);
+    fake.connects[0]!.resolve({ ok: true, value: { session: "s1" } });
+    await Bun.sleep(0);
+    fake.invokeResults.push(
+      Promise.resolve({
+        ok: false,
+        error: { code: "STALE_SESSION", message: "stale" },
+      }),
+    );
+    const query = feed.invoke("query", "todos", {});
+    await Bun.sleep(0);
+    fake.subscriptions[0]!.result.reject(new Error("obsolete"));
+    await Bun.sleep(0);
+    expect(events.errors).toEqual([]);
+    fake.connects[1]!.resolve({ ok: true, value: { session: "s2" } });
+    await query;
+    fake.subscriptions[1]!.result.resolve({
+      ok: false,
+      error: { code: "STALE_SESSION", message: "stale" },
+    });
+    await Bun.sleep(0);
+    expect(events.errors).toHaveLength(1);
+    expect(events.errors[0]).toMatchObject({ code: "STALE_SESSION" });
+    expect(fake.connects).toHaveLength(2);
+    feed.stop();
+  });
+
   test("permanent subscription rejection does not retry or survive stop", async () => {
     const fake = fakeRpc();
     const events = handlers();
@@ -169,6 +225,7 @@ describe("ElectrobunFeed", () => {
     });
     await Bun.sleep(0);
     expect(fake.subscriptions[1]?.params.queries).toEqual(["query.b"]);
+    expect(events.subscribed).toEqual([]);
     const listener = [...fake.listeners][0]!;
     feed.stop();
     listener({ session: "s1", queries: ["query.b"] });
@@ -219,6 +276,7 @@ describe("ElectrobunFeed", () => {
     await expect(feed.invoke("query", "todos", {})).rejects.toThrow("stopped");
     expect(fake.connects).toHaveLength(1);
     expect(fake.listeners.size).toBe(0);
+    expect(fake.disconnects).toEqual(["late"]);
   });
 
   test("reconnects and retries a query once after transport rejection", async () => {

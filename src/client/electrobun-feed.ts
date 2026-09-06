@@ -152,11 +152,16 @@ export class ElectrobunFeed implements ChangeFeed {
     const promise = this.rpc.request
       .connect({ protocolVersion: PROTOCOL_VERSION })
       .then((response) => {
-        if (this.stopped || generation !== this.generation)
+        if (this.stopped || generation !== this.generation) {
+          if (response.ok)
+            void this.rpc.request
+              .disconnect({ session: response.value.session })
+              .catch(() => {});
           throw new ReactiveDataError(
             "STOPPED",
             "Obsolete reactive data connection",
           );
+        }
         if (!response.ok)
           throw new ReactiveDataError(
             response.error.code,
@@ -201,14 +206,26 @@ export class ElectrobunFeed implements ChangeFeed {
         )
           return;
         if (!response.ok) {
-          if (response.error.code === "STALE_SESSION")
+          if (response.error.code === "STALE_SESSION") {
+            failed = true;
+            this.report(
+              new ReactiveDataError(
+                response.error.code,
+                response.error.message,
+              ),
+            );
             this.invalidateSession(session);
+            return;
+          }
           throw new ReactiveDataError(
             response.error.code,
             response.error.message,
           );
         }
-        if (response.value.revision === revision)
+        if (
+          response.value.revision === revision &&
+          desiredVersion === this.desiredVersion
+        )
           this.handlers?.onSubscribed(response.value.queries);
         this.submittedVersion = desiredVersion;
         if (desiredVersion === this.desiredVersion) return;
@@ -217,7 +234,7 @@ export class ElectrobunFeed implements ChangeFeed {
     const promise = run()
       .catch((error) => {
         failed = true;
-        if (generation === this.generation || !this.session) this.report(error);
+        if (generation === this.generation) this.report(error);
       })
       .finally(() => {
         if (this.submitPromise === promise) {
@@ -245,7 +262,9 @@ export class ElectrobunFeed implements ChangeFeed {
   ): Promise<unknown> {
     if (this.stopped) throw cause;
     this.invalidateSession(failedSession);
-    const session = await this.ensureConnected();
+    const session = await this.ensureConnected().catch((error) => {
+      throw transportError(error);
+    });
     const response = await this.rpc.request
       .invoke({
         session,

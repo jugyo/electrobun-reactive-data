@@ -15,9 +15,9 @@ export function defineTrigger(options: {
   return Object.freeze({
     id: options.name ?? options.table,
     table: options.table,
-    events: Object.freeze(
-      options.events ?? (["insert", "update", "delete"] as const),
-    ),
+    events: Object.freeze([
+      ...(options.events ?? (["insert", "update", "delete"] as const)),
+    ]),
   });
 }
 
@@ -31,35 +31,63 @@ export function reconcileTriggers(
   definitions: readonly TriggerDefinition[],
 ): void {
   const ids = new Set<string>();
+  const names = new Set<string>();
+  const operations = ["insert", "update", "delete"] as const;
   for (const definition of definitions) {
+    if (
+      !definition.id ||
+      !definition.table ||
+      /\0/.test(definition.id + definition.table) ||
+      definition.events.some((event) => !operations.includes(event))
+    )
+      throw new Error("Invalid trigger definition");
     if (ids.has(definition.id))
       throw new Error(`Duplicate trigger ID: ${definition.id}`);
     ids.add(definition.id);
-  }
-  db.exec(`CREATE TABLE IF NOT EXISTS __electrobun_reactive_changes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, trigger_id TEXT NOT NULL, operation TEXT NOT NULL
-  )`);
-  const desired = new Set<string>();
-  for (const definition of definitions) {
-    for (const operation of ["insert", "update", "delete"] as const) {
-      const name = triggerName(definition.id, operation);
-      if (!definition.events.includes(operation)) {
-        db.exec(`DROP TRIGGER IF EXISTS ${quote(name)}`);
-        continue;
-      }
-      desired.add(name);
-      db.exec(
-        `DROP TRIGGER IF EXISTS ${quote(name)}; CREATE TRIGGER ${quote(name)} AFTER ${operation.toUpperCase()} ON ${quote(definition.table)} BEGIN INSERT INTO __electrobun_reactive_changes(trigger_id, operation) VALUES (${literal(definition.id)}, ${literal(operation)}); END`,
-      );
+    for (const operation of operations) {
+      const name = triggerName(definition.id, operation).toLowerCase();
+      if (names.has(name))
+        throw new Error(`Trigger name collision: ${definition.id}`);
+      names.add(name);
     }
   }
-  const rows = db
-    .query<{ name: string }, []>(
-      "SELECT name FROM sqlite_schema WHERE type='trigger' AND name LIKE '__erd_%'",
-    )
-    .all();
-  for (const row of rows)
-    if (!desired.has(row.name)) db.exec(`DROP TRIGGER ${quote(row.name)}`);
+  // Preserve the legacy generated DDL signature; never adopt unrelated triggers.
+  const owns = (row: { name: string; sql: string }) =>
+    row.name.startsWith("__erd_") &&
+    row.sql.includes(
+      "BEGIN INSERT INTO __electrobun_reactive_changes(trigger_id, operation) VALUES (",
+    ) &&
+    row.sql.endsWith("; END");
+  db.transaction(() => {
+    db.exec(`CREATE TABLE IF NOT EXISTS __electrobun_reactive_changes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, trigger_id TEXT NOT NULL, operation TEXT NOT NULL
+    )`);
+    const existing = db
+      .query<{ name: string; sql: string }, []>(
+        "SELECT name, sql FROM sqlite_schema WHERE type='trigger'",
+      )
+      .all();
+    const byName = new Map(
+      existing.map((row) => [row.name.toLowerCase(), row]),
+    );
+    const desired = new Set<string>();
+    for (const definition of definitions) {
+      for (const operation of operations) {
+        const name = triggerName(definition.id, operation);
+        const previous = byName.get(name.toLowerCase());
+        if (previous && !owns(previous))
+          throw new Error(`Trigger name belongs to another owner: ${name}`);
+        if (!definition.events.includes(operation)) continue;
+        desired.add(name.toLowerCase());
+        db.exec(
+          `DROP TRIGGER IF EXISTS ${quote(name)}; CREATE TRIGGER ${quote(name)} AFTER ${operation.toUpperCase()} ON ${quote(definition.table)} BEGIN INSERT INTO __electrobun_reactive_changes(trigger_id, operation) VALUES (${literal(definition.id)}, ${literal(operation)}); END`,
+        );
+      }
+    }
+    for (const row of existing)
+      if (owns(row) && !desired.has(row.name.toLowerCase()))
+        db.exec(`DROP TRIGGER ${quote(row.name)}`);
+  })();
 }
 
 export function consumeChanges(db: Database): string[] {

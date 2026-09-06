@@ -1,29 +1,12 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
-const walk = (dir) =>
-  readdirSync(dir).flatMap((name) => {
-    const path = join(dir, name);
-    return statSync(path).isDirectory() ? walk(path) : [path];
-  });
-for (const file of [...walk("src/client"), ...walk("src/react")]) {
-  const source = readFileSync(file, "utf8");
-  if (/from\s+["'][^"']*(?:\/main|bun:sqlite|electrobun\/main)/.test(source))
-    throw new Error(`Forbidden renderer import: ${file}`);
-}
-const built = (() => {
-  try {
-    return walk("dist")
-      .filter((f) => f.endsWith(".js"))
-      .map((f) => readFileSync(f, "utf8"))
-      .join("\n");
-  } catch {
-    return "";
-  }
-})();
-if (
-  /bun:sqlite|electrobun\/main|CREATE TABLE|__electrobun_reactive_changes/.test(
-    built,
-  )
-)
-  throw new Error("Renderer bundle contains main-process implementation");
-console.log("Renderer boundary check passed");
+import { existsSync } from "node:fs";
+import { checkRendererGraph, checkBundle } from "./renderer-boundaries.mjs";
+checkRendererGraph([
+  "src/client/index.ts",
+  "src/react/index.tsx",
+  "demo/mainview/main.tsx",
+  "examples/notes-consumer/src/mainview/main.tsx",
+]);
+if (existsSync("dist")) checkBundle("dist");
+else if (process.argv.includes("--require-dist"))
+  throw new Error("Build the renderer before checking its bundle");
+console.log("Renderer AST graph and bundle checks passed");

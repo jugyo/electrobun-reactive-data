@@ -4,9 +4,44 @@ import { createReactiveDataClient } from "../../src/client/index.js";
 import { ReactiveDataProvider, useLiveQuery } from "../../src/react/index.js";
 import type { AppApi } from "../bun/index.js";
 import type { TodoFilter } from "../shared.js";
+import type { ReactiveRpcClient } from "../../src/client/electrobun-feed.js";
 import "./style.css";
 
 const { api, runtime } = createReactiveDataClient<AppApi>();
+// Demo-only fault injection; no testing hook is exposed by the public library.
+let restoreSubscriptionTransport: (() => void) | undefined;
+function failSubscription() {
+  const feed = (
+    runtime as unknown as {
+      feed: {
+        rpc: ReactiveRpcClient;
+        desired: string[];
+        setQueries(ids: string[]): void;
+      };
+    }
+  ).feed;
+  const rpc = feed.rpc;
+  const desired = [...feed.desired];
+  feed.rpc = new Proxy(rpc, {
+    get(target, key) {
+      if (key !== "request") return Reflect.get(target, key);
+      return new Proxy(target.request, {
+        get(request, method) {
+          return method === "setQueries"
+            ? async () => {
+                throw new Error("Injected subscription failure");
+              }
+            : Reflect.get(request, method);
+        },
+      });
+    },
+  });
+  restoreSubscriptionTransport = () => {
+    feed.rpc = rpc;
+    feed.setQueries(desired);
+  };
+  feed.setQueries([]);
+}
 function App() {
   const [filter, setFilter] = useState<TodoFilter>("all");
   const [title, setTitle] = useState("");
@@ -32,6 +67,11 @@ function App() {
           ? api.mutation.deleteTodo({ id: todos.data[0].id })
           : Promise.reject(new Error("No todo to delete")),
       rollback: () => api.mutation.failAfterWrite({}).catch(() => undefined),
+      failSubscription,
+      recoverSubscription: async () => {
+        restoreSubscriptionTransport?.();
+        await todos.refresh();
+      },
       setFilter,
       report: (stage: string) =>
         api.mutation.recordNativeSmoke({
@@ -48,6 +88,7 @@ function App() {
         windowId: Number((window as any).__electrobunWindowId),
         filter,
         status: todos.status,
+        error: todos.status === "error" ? todos.error.message : null,
         refreshCount: todos.refreshCount,
         rows: todos.status === "success" ? todos.data : [],
         text: document.body.innerText,

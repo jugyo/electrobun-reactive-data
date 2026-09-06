@@ -43,6 +43,8 @@ const stableKey = (value: unknown): string =>
           .sort(([a], [b]) => a.localeCompare(b))
           .map(([k, v]) => `${JSON.stringify(k)}:${stableKey(v)}`)
           .join(",")}}`;
+export const queryKey = (value: unknown): string =>
+  stableKey(prepareWireValue(value));
 class Mounted<P, R> {
   snapshot: LiveQuerySnapshot<R> = {
     status: "loading",
@@ -180,9 +182,13 @@ export class LiveQueryRuntime {
         "A stopped runtime cannot be restarted; create a new client",
       );
     this.roots += 1;
-    const version = ++this.cleanupVersion;
+    this.cleanupVersion += 1;
+    let released = false;
     return () => {
+      if (released) return;
+      released = true;
       this.roots = Math.max(0, this.roots - 1);
+      const version = ++this.cleanupVersion;
       queueMicrotask(() => {
         if (!this.roots && this.cleanupVersion === version) this.stop();
       });

@@ -35,6 +35,9 @@ export function assertTodoAcceptance(
   stages: Record<string, any>,
 ): void {
   pair(stages.afterAdd, [{ title, done: 0 }]);
+  equal(stages.subscriptionError.status, "error");
+  equal(stages.subscriptionError.error, "Injected subscription failure");
+  deepStrictEqual(rows(stages.subscriptionRecovered), [{ title, done: 0 }]);
   pair(stages.afterToggle, [{ title, done: 1 }]);
   pair(stages.afterDelete, []);
   deepStrictEqual(rows(stages.filters[0]), [
