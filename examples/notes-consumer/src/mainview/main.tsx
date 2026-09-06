@@ -1,11 +1,119 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { createReactiveDataClient } from "@jugyo/electrobun-reactive-data/client";
-import { ReactiveDataProvider, useLiveQuery } from "@jugyo/electrobun-reactive-data/react";
+import {
+  ReactiveDataProvider,
+  useLiveQuery,
+} from "@jugyo/electrobun-reactive-data/react";
 import type { NotesApi } from "../bun/index.js";
 import "./style.css";
 const { api, runtime } = createReactiveDataClient<NotesApi>();
-function App() { const notes = useLiveQuery(api.query.notes, {}); const [title, setTitle] = useState(""); const [body, setBody] = useState(""); const rows = notes.status === "success" ? notes.data : [];
-  useEffect(() => { (window as any).__notesSmoke = { create: (nextTitle: string, nextBody: string) => api.mutation.create({ title: nextTitle, body: nextBody }), editFirst: (nextBody: string) => rows[0] && api.mutation.update({ id: rows[0].id, title: rows[0].title, body: nextBody }), deleteFirst: () => rows[0] && api.mutation.remove({ id: rows[0].id }), report: (stage: string) => api.mutation.report({ stage, windowId: Number((window as any).__electrobunWindowId), payload: { status: notes.status, refreshCount: notes.refreshCount, rows } }), snapshot: () => ({ windowId: Number((window as any).__electrobunWindowId), status: notes.status, refreshCount: notes.refreshCount, rows, text: document.body.innerText }) }; return () => { delete (window as any).__notesSmoke; }; }, [notes, rows]);
-  return <main><header><p>PACKAGED CONSUMER</p><h1>Notes</h1></header><form onSubmit={(event) => { event.preventDefault(); void api.mutation.create({ title, body }); setTitle(""); setBody(""); }}><input aria-label="Title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title"/><textarea aria-label="Body" value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write a note…"/><button>Create note</button></form>{notes.status === "loading" && <p>Loading…</p>}{notes.status === "error" && <p role="alert">{notes.error.message}</p>}<p className="meta">Refresh #{notes.refreshCount}</p><section>{rows.map((note) => <article key={note.id}><input value={note.title} onChange={(e) => void api.mutation.update({ id: note.id, title: e.target.value, body: note.body })}/><textarea value={note.body} onChange={(e) => void api.mutation.update({ id: note.id, title: note.title, body: e.target.value })}/><button onClick={() => void api.mutation.remove({ id: note.id })}>Delete</button></article>)}</section></main>; }
-createRoot(document.getElementById("root")!).render(<StrictMode><ReactiveDataProvider runtime={runtime}><App/></ReactiveDataProvider></StrictMode>);
+function App() {
+  const notes = useLiveQuery(api.query.notes, {});
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const rows = notes.status === "success" ? notes.data : [];
+  useEffect(() => {
+    (window as any).__notesSmoke = {
+      create: (nextTitle: string, nextBody: string) =>
+        api.mutation.create({ title: nextTitle, body: nextBody }),
+      editFirst: (nextBody: string) =>
+        rows[0] &&
+        api.mutation.update({
+          id: rows[0].id,
+          title: rows[0].title,
+          body: nextBody,
+        }),
+      deleteFirst: () => rows[0] && api.mutation.remove({ id: rows[0].id }),
+      report: (stage: string) =>
+        api.mutation.report({
+          stage,
+          windowId: Number((window as any).__electrobunWindowId),
+          payload: {
+            status: notes.status,
+            refreshCount: notes.refreshCount,
+            rows,
+          },
+        }),
+      snapshot: () => ({
+        windowId: Number((window as any).__electrobunWindowId),
+        status: notes.status,
+        refreshCount: notes.refreshCount,
+        rows,
+        text: document.body.innerText,
+      }),
+    };
+    return () => {
+      delete (window as any).__notesSmoke;
+    };
+  }, [notes, rows]);
+  return (
+    <main>
+      <header>
+        <p>PACKAGED CONSUMER</p>
+        <h1>Notes</h1>
+      </header>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void api.mutation.create({ title, body });
+          setTitle("");
+          setBody("");
+        }}
+      >
+        <input
+          aria-label="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title"
+        />
+        <textarea
+          aria-label="Body"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Write a note…"
+        />
+        <button>Create note</button>
+      </form>
+      {notes.status === "loading" && <p>Loading…</p>}
+      {notes.status === "error" && <p role="alert">{notes.error.message}</p>}
+      <p className="meta">Refresh #{notes.refreshCount}</p>
+      <section>
+        {rows.map((note) => (
+          <article key={note.id}>
+            <input
+              value={note.title}
+              onChange={(e) =>
+                void api.mutation.update({
+                  id: note.id,
+                  title: e.target.value,
+                  body: note.body,
+                })
+              }
+            />
+            <textarea
+              value={note.body}
+              onChange={(e) =>
+                void api.mutation.update({
+                  id: note.id,
+                  title: note.title,
+                  body: e.target.value,
+                })
+              }
+            />
+            <button onClick={() => void api.mutation.remove({ id: note.id })}>
+              Delete
+            </button>
+          </article>
+        ))}
+      </section>
+    </main>
+  );
+}
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <ReactiveDataProvider runtime={runtime}>
+      <App />
+    </ReactiveDataProvider>
+  </StrictMode>,
+);

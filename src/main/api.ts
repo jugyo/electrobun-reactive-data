@@ -14,8 +14,9 @@ export type ApiDefinition = {
   mutation: Record<string, MutationHandler>;
 };
 
-export function defineApi<const Q extends Record<string, QueryHandler>, const M extends Record<string, MutationHandler>>(
-  api: { query: Q; mutation: M },
-): { query: Q; mutation: M } {
+export function defineApi<
+  const Q extends Record<string, QueryHandler>,
+  const M extends Record<string, MutationHandler>,
+>(api: { query: Q; mutation: M }): { query: Q; mutation: M } {
   return api;
 }

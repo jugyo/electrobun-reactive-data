@@ -33,7 +33,9 @@ import { resolve } from "node:path";
 import { electrobunViteAliases } from "./.hutch/devkit/api/config/electrobun-vite";
 
 export default defineConfig({
-  resolve: { alias: electrobunViteAliases(resolve(import.meta.dirname, ".hutch/devkit")) },
+  resolve: {
+    alias: electrobunViteAliases(resolve(import.meta.dirname, ".hutch/devkit")),
+  },
 });
 ```
 
@@ -44,25 +46,46 @@ The demo opens two windows over the same file at `Utils.paths.userData/reactive-
 Main process (schema creation is application-owned, not an automatic migration):
 
 ```ts
-import { createReactiveData, defineApi, defineTrigger } from "@jugyo/electrobun-reactive-data/main";
+import {
+  createReactiveData,
+  defineApi,
+  defineTrigger,
+} from "@jugyo/electrobun-reactive-data/main";
 
 const data = createReactiveData({
   createApi(db) {
-    db.exec("CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, title TEXT NOT NULL)");
+    db.exec(
+      "CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, title TEXT NOT NULL)",
+    );
     return defineApi({
       query: {
         notes: {
           dependsOn: ["notes"],
-          run: (_input: {}) => db.query<{ id: number; title: string }, []>("SELECT id, title FROM notes ORDER BY id").all(),
+          run: (_input: {}) =>
+            db
+              .query<{ id: number; title: string }, []>(
+                "SELECT id, title FROM notes ORDER BY id",
+              )
+              .all(),
         },
       },
       mutation: {
         add: {
           validate(input: unknown): { title: string } {
-            if (!input || typeof input !== "object" || !("title" in input) || typeof input.title !== "string" || !input.title.trim()) throw new Error("Title is required");
+            if (
+              !input ||
+              typeof input !== "object" ||
+              !("title" in input) ||
+              typeof input.title !== "string" ||
+              !input.title.trim()
+            )
+              throw new Error("Title is required");
             return { title: input.title.trim() };
           },
-          run({ title }: { title: string }) { db.query("INSERT INTO notes(title) VALUES (?)").run(title); return { ok: true }; },
+          run({ title }: { title: string }) {
+            db.query("INSERT INTO notes(title) VALUES (?)").run(title);
+            return { ok: true };
+          },
         },
       },
     });
@@ -77,18 +100,32 @@ Renderer (one client per document; import the main contract as a type only):
 
 ```tsx
 import { createReactiveDataClient } from "@jugyo/electrobun-reactive-data/client";
-import { ReactiveDataProvider, useLiveQuery } from "@jugyo/electrobun-reactive-data/react";
+import {
+  ReactiveDataProvider,
+  useLiveQuery,
+} from "@jugyo/electrobun-reactive-data/react";
 import type { AppApi } from "../bun/index.js";
 
 const { api, runtime } = createReactiveDataClient<AppApi>();
 function Notes() {
   const notes = useLiveQuery(api.query.notes, {});
   if (notes.status === "loading") return <p>Loading…</p>;
-  if (notes.status === "error") return <button onClick={() => void notes.refresh()}>Retry</button>;
-  return <ul>{notes.data.map((note) => <li key={note.id}>{note.title}</li>)}</ul>;
+  if (notes.status === "error")
+    return <button onClick={() => void notes.refresh()}>Retry</button>;
+  return (
+    <ul>
+      {notes.data.map((note) => (
+        <li key={note.id}>{note.title}</li>
+      ))}
+    </ul>
+  );
 }
 export function App() {
-  return <ReactiveDataProvider runtime={runtime}><Notes /></ReactiveDataProvider>;
+  return (
+    <ReactiveDataProvider runtime={runtime}>
+      <Notes />
+    </ReactiveDataProvider>
+  );
 }
 // UI event handlers may call await api.mutation.add({ title: "Hello" }); catch errors in the UI.
 ```

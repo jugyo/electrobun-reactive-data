@@ -7,6 +7,8 @@ export default defineConfig({
   root: "demo/mainview",
   plugins: [react()],
   base: "./",
-  resolve: { alias: electrobunViteAliases(resolve(import.meta.dirname, ".hutch/devkit")) },
+  resolve: {
+    alias: electrobunViteAliases(resolve(import.meta.dirname, ".hutch/devkit")),
+  },
   build: { outDir: "../../dist", emptyOutDir: true },
 });
