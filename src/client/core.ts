@@ -1,3 +1,5 @@
+import { transportError, type ReactiveDataError } from "./errors.js";
+
 export type LiveQuerySnapshot<T> =
   | {
       status: "loading";
@@ -57,7 +59,21 @@ class Mounted<P, R> {
     readonly query: (params: P) => Promise<R>,
     readonly params: P,
     readonly active: (on: boolean) => void,
+    readonly health: () => { epoch: number; error?: Error } = () => ({
+      epoch: 0,
+    }),
   ) {}
+  fail(error: Error) {
+    if (this.disposed || !this.listeners.size) return;
+    this.snapshot = {
+      status: "error",
+      data: undefined,
+      error,
+      updatedAt: Date.now(),
+      refreshCount: this.snapshot.refreshCount,
+    };
+    this.listeners.forEach((listener) => listener());
+  }
   getSnapshot = () => this.snapshot;
   subscribe = (listener: () => void) => {
     const first = !this.listeners.size;
@@ -80,9 +96,16 @@ class Mounted<P, R> {
     this.refreshing = true;
     do {
       this.dirty = false;
+      const epoch = this.health().epoch;
       try {
         const data = await this.query(this.params);
         if (this.disposed || !this.listeners.size) continue;
+        const health = this.health();
+        if (health.error) {
+          this.fail(health.error);
+          continue;
+        }
+        if (health.epoch !== epoch) continue;
         this.snapshot = {
           status: "success",
           data,
@@ -92,6 +115,12 @@ class Mounted<P, R> {
         };
       } catch (cause) {
         if (this.disposed || !this.listeners.size) continue;
+        const health = this.health();
+        if (health.error) {
+          this.fail(health.error);
+          continue;
+        }
+        if (health.epoch !== epoch) continue;
         this.snapshot = {
           status: "error",
           data: undefined,
@@ -111,12 +140,27 @@ export class LiveQueryRuntime {
   private disposed = false;
   private roots = 0;
   private cleanupVersion = 0;
-  constructor(private readonly feed: ChangeFeed) {}
+  private epoch = 0;
+  private feedError?: ReactiveDataError;
+  private accepted = new Set<string>();
+  constructor(
+    private readonly feed: ChangeFeed,
+    private readonly onError?: (error: ReactiveDataError) => void,
+  ) {}
   getInstance<P, R>(id: string, query: (params: P) => Promise<R>, params: P) {
     const key = `${id}:${stableKey(params)}`;
     let item = this.instances.get(key);
     if (!item) {
-      item = new Mounted(id, query, params, (on) => this.active(key, on));
+      item = new Mounted(
+        id,
+        query,
+        params,
+        (on) => this.active(key, on),
+        () => ({
+          epoch: this.epoch,
+          error: this.accepted.has(id) ? undefined : this.feedError,
+        }),
+      );
       this.instances.set(key, item);
     }
     return item as Mounted<P, R>;
@@ -153,7 +197,12 @@ export class LiveQueryRuntime {
           this.sync();
         }
       });
-    } else this.sync();
+    } else {
+      const item = this.instances.get(key);
+      if (item && this.feedError && !this.accepted.has(item.id))
+        item.fail(this.feedError);
+      this.sync();
+    }
   }
   private sync() {
     const ids = [
@@ -168,8 +217,32 @@ export class LiveQueryRuntime {
       this.started = true;
       this.feed.start({
         onNotifications: (b) => this.rerun(b.queries),
-        onSubscribed: (ids) => this.rerun(ids),
-        onError: console.error,
+        onSubscribed: (ids) => {
+          if (this.disposed) return;
+          this.epoch += 1;
+          this.accepted = new Set(ids);
+          this.rerun(ids);
+        },
+        onError: (cause) => {
+          if (this.disposed) return;
+          const error = transportError(cause);
+          this.epoch += 1;
+          this.feedError = error;
+          this.accepted.clear();
+          for (const item of this.instances.values()) item.fail(error);
+          queueMicrotask(() => {
+            if (this.disposed) return;
+            try {
+              if (this.onError) this.onError(error);
+              else console.error(error);
+            } catch (callbackError) {
+              console.error(
+                "Reactive data onError callback failed",
+                callbackError,
+              );
+            }
+          });
+        },
       });
     }
   }

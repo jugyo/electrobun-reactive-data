@@ -4,6 +4,7 @@ import {
   type Envelope,
 } from "../protocol.js";
 import type { ChangeFeed, ChangeFeedHandlers } from "./core.js";
+import { ReactiveDataError, transportError } from "./errors.js";
 
 export interface ReactiveRpcClient {
   request: {
@@ -49,6 +50,11 @@ export class ElectrobunFeed implements ChangeFeed {
   constructor(private readonly rpc: ReactiveRpcClient) {}
 
   setQueries(ids: readonly string[]): void {
+    if (
+      ids.length === this.desired.length &&
+      ids.every((id, index) => id === this.desired[index])
+    )
+      return;
     this.desired = [...ids];
     this.desiredVersion += 1;
     if (this.session) this.startSubmit();
@@ -82,16 +88,24 @@ export class ElectrobunFeed implements ChangeFeed {
     name: string,
     input: unknown,
   ): Promise<unknown> {
-    if (this.stopped) throw new Error("Reactive data client is stopped");
-    const session = await this.ensureConnected();
+    if (this.stopped)
+      throw new ReactiveDataError("STOPPED", "Reactive data client is stopped");
+    const alreadyConnected = this.session !== undefined;
+    const session = await this.ensureConnected().catch((error) => {
+      throw transportError(error);
+    });
     // An explicit query/refresh can retry a failed subscription; failures never spin.
-    if (kind === "query" && this.submittedVersion !== this.desiredVersion)
+    if (
+      alreadyConnected &&
+      kind === "query" &&
+      this.submittedVersion !== this.desiredVersion
+    )
       this.startSubmit();
     let response: Envelope;
     try {
       response = await this.rpc.request.invoke({ session, kind, name, input });
     } catch (error) {
-      if (kind === "mutation") throw error;
+      if (kind === "mutation") throw transportError(error);
       return this.retryQuery(name, input, session, error);
     }
     if (
@@ -107,7 +121,7 @@ export class ElectrobunFeed implements ChangeFeed {
       );
     }
     if (!response.ok)
-      throw new Error(`${response.error.code}: ${response.error.message}`);
+      throw new ReactiveDataError(response.error.code, response.error.message);
     return response.value;
   }
 
@@ -119,7 +133,9 @@ export class ElectrobunFeed implements ChangeFeed {
 
   private ensureConnected(): Promise<string> {
     if (this.stopped)
-      return Promise.reject(new Error("Reactive data client is stopped"));
+      return Promise.reject(
+        new ReactiveDataError("STOPPED", "Reactive data client is stopped"),
+      );
     if (this.session) return Promise.resolve(this.session);
     if (this.connectPromise) return this.connectPromise;
     const generation = this.generation;
@@ -127,9 +143,15 @@ export class ElectrobunFeed implements ChangeFeed {
       .connect({ protocolVersion: PROTOCOL_VERSION })
       .then((response) => {
         if (this.stopped || generation !== this.generation)
-          throw new Error("Obsolete reactive data connection");
+          throw new ReactiveDataError(
+            "STOPPED",
+            "Obsolete reactive data connection",
+          );
         if (!response.ok)
-          throw new Error(`${response.error.code}: ${response.error.message}`);
+          throw new ReactiveDataError(
+            response.error.code,
+            response.error.message,
+          );
         this.session = response.value.session;
         this.revision = 0;
         this.submittedVersion = -1;
@@ -171,7 +193,10 @@ export class ElectrobunFeed implements ChangeFeed {
         if (!response.ok) {
           if (response.error.code === "STALE_SESSION")
             this.invalidateSession(session);
-          throw new Error(`${response.error.code}: ${response.error.message}`);
+          throw new ReactiveDataError(
+            response.error.code,
+            response.error.message,
+          );
         }
         if (response.value.revision === revision)
           this.handlers?.onSubscribed(response.value.queries);
@@ -182,7 +207,7 @@ export class ElectrobunFeed implements ChangeFeed {
     const promise = run()
       .catch((error) => {
         failed = true;
-        this.report(error);
+        if (generation === this.generation || !this.session) this.report(error);
       })
       .finally(() => {
         if (this.submitPromise === promise) {
@@ -211,14 +236,18 @@ export class ElectrobunFeed implements ChangeFeed {
     if (this.stopped) throw cause;
     this.invalidateSession(failedSession);
     const session = await this.ensureConnected();
-    const response = await this.rpc.request.invoke({
-      session,
-      kind: "query",
-      name,
-      input,
-    });
+    const response = await this.rpc.request
+      .invoke({
+        session,
+        kind: "query",
+        name,
+        input,
+      })
+      .catch((error) => {
+        throw transportError(error);
+      });
     if (!response.ok)
-      throw new Error(`${response.error.code}: ${response.error.message}`);
+      throw new ReactiveDataError(response.error.code, response.error.message);
     return response.value;
   }
 
@@ -230,6 +259,6 @@ export class ElectrobunFeed implements ChangeFeed {
   }
 
   private report(error: unknown): void {
-    if (!this.stopped) this.handlers?.onError(error);
+    if (!this.stopped) this.handlers?.onError(transportError(error));
   }
 }

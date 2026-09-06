@@ -6,11 +6,8 @@ import {
   useSyncExternalStore,
   type PropsWithChildren,
 } from "react";
-import {
-  LiveQueryRuntime,
-  type LiveQuerySnapshot,
-  type QueryFunction,
-} from "../client/index.js";
+import { LiveQueryRuntime, type LiveQuerySnapshot } from "../client/core.js";
+import type { QueryFunction } from "../client/index.js";
 const Context = createContext<LiveQueryRuntime | null>(null);
 export function ReactiveDataProvider({
   runtime,

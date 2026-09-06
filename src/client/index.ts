@@ -1,4 +1,6 @@
 import { Electroview } from "electrobun/view";
+import type { ReactiveDataError } from "./errors.js";
+export { ReactiveDataError, type ReactiveDataErrorCode } from "./errors.js";
 import type { ReactiveRpcSchema } from "../protocol.js";
 import { LiveQueryRuntime } from "./core.js";
 import { ElectrobunFeed, type ReactiveRpcClient } from "./electrobun-feed.js";
@@ -31,7 +33,13 @@ export type ClientApi<A extends Contract> = {
   };
 };
 
-export function createReactiveDataClient<A extends Contract>(): {
+export interface ReactiveDataClientOptions {
+  onError?: (error: ReactiveDataError) => void;
+}
+
+export function createReactiveDataClient<A extends Contract>(
+  options: ReactiveDataClientOptions = {},
+): {
   api: ClientApi<A>;
   runtime: LiveQueryRuntime;
 } {
@@ -53,7 +61,7 @@ export function createReactiveDataClient<A extends Contract>(): {
   });
   return {
     api: { query, mutation } as ClientApi<A>,
-    runtime: new LiveQueryRuntime(feed),
+    runtime: new LiveQueryRuntime(feed, options.onError),
   };
 }
 
