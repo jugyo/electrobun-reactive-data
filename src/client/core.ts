@@ -1,4 +1,5 @@
 import { transportError, type ReactiveDataError } from "./errors.js";
+import { prepareWireValue } from "../wire.js";
 
 export type LiveQuerySnapshot<T> =
   | {
@@ -148,6 +149,7 @@ export class LiveQueryRuntime {
     private readonly onError?: (error: ReactiveDataError) => void,
   ) {}
   getInstance<P, R>(id: string, query: (params: P) => Promise<R>, params: P) {
+    params = prepareWireValue(params);
     const key = `${id}:${stableKey(params)}`;
     let item = this.instances.get(key);
     if (!item) {

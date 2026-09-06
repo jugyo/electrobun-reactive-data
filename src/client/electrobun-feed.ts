@@ -5,6 +5,7 @@ import {
 } from "../protocol.js";
 import type { ChangeFeed, ChangeFeedHandlers } from "./core.js";
 import { ReactiveDataError, transportError } from "./errors.js";
+import { prepareWireValue } from "../wire.js";
 
 export interface ReactiveRpcClient {
   request: {
@@ -90,6 +91,15 @@ export class ElectrobunFeed implements ChangeFeed {
   ): Promise<unknown> {
     if (this.stopped)
       throw new ReactiveDataError("STOPPED", "Reactive data client is stopped");
+    try {
+      input = prepareWireValue(input);
+    } catch (cause) {
+      throw new ReactiveDataError(
+        "INVALID_INPUT",
+        cause instanceof Error ? cause.message : String(cause),
+        { cause },
+      );
+    }
     const alreadyConnected = this.session !== undefined;
     const session = await this.ensureConnected().catch((error) => {
       throw transportError(error);

@@ -145,7 +145,7 @@ function idInput(input: unknown): { id: number } {
   return { id: Number(input.id) };
 }
 
-type NativeSmokeInput = { stage: string; windowId: number; payload: unknown };
+type NativeSmokeInput = { stage: string; windowId: number; payload: string };
 function smokeInput(input: unknown): NativeSmokeInput {
   if (
     !input ||
@@ -154,7 +154,8 @@ function smokeInput(input: unknown): NativeSmokeInput {
     typeof input.stage !== "string" ||
     !("windowId" in input) ||
     !Number.isSafeInteger(input.windowId) ||
-    !("payload" in input)
+    !("payload" in input) ||
+    typeof input.payload !== "string"
   )
     throw new Error("Invalid native smoke report");
   return input as NativeSmokeInput;

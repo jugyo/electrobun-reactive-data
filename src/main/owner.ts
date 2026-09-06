@@ -1,8 +1,8 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { assertWireValue } from "../protocol.js";
-import type { ApiDefinition } from "./api.js";
+import { prepareWireValue } from "../protocol.js";
+import { assertSynchronousHandlers, type ApiDefinition } from "./api.js";
 import { SessionHub } from "./hub.js";
 import {
   consumeChanges,
@@ -39,6 +39,7 @@ export function createDataOwner<A extends ApiDefinition>(
     db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL");
     const api = options.createApi(db);
     validateApi(api);
+    assertSynchronousHandlers(api);
     reconcileTriggers(db, options.triggers);
 
     let state: "running" | "stopping" | "stopped" = "running";
@@ -57,10 +58,7 @@ export function createDataOwner<A extends ApiDefinition>(
       try {
         db!.exec("BEGIN IMMEDIATE");
         began = true;
-        result = run();
-        if (result && typeof (result as { then?: unknown }).then === "function")
-          throw new Error("Async handlers are not supported");
-        assertWireValue(result);
+        result = prepareWireValue(run());
         db!.exec("COMMIT");
         committed = true;
       } catch (error) {

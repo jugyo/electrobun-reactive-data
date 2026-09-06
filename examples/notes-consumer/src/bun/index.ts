@@ -120,7 +120,7 @@ function idInput(input: unknown): { id: number } {
 function updateInput(input: unknown): NoteInput & { id: number } {
   return { ...noteInput(input), ...idInput(input) };
 }
-type ReportInput = { stage: string; windowId: number; payload: unknown };
+type ReportInput = { stage: string; windowId: number; payload: string };
 function reportInput(input: unknown): ReportInput {
   if (
     !input ||
@@ -129,7 +129,8 @@ function reportInput(input: unknown): ReportInput {
     typeof input.stage !== "string" ||
     !("windowId" in input) ||
     !Number.isSafeInteger(input.windowId) ||
-    !("payload" in input)
+    !("payload" in input) ||
+    typeof input.payload !== "string"
   )
     throw new Error("Invalid report");
   return input as ReportInput;

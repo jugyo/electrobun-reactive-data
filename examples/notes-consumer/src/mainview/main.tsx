@@ -29,11 +29,11 @@ function App() {
         api.mutation.report({
           stage,
           windowId: Number((window as any).__electrobunWindowId),
-          payload: {
+          payload: JSON.stringify({
             status: notes.status,
             refreshCount: notes.refreshCount,
             rows,
-          },
+          }),
         }),
       snapshot: () => ({
         windowId: Number((window as any).__electrobunWindowId),

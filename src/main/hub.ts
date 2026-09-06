@@ -3,6 +3,7 @@ import {
   MAX_QUERIES,
   PROTOCOL_VERSION,
   assertWireValue,
+  prepareWireValue,
   type ChangedMessage,
   type Envelope,
   type InvokeParams,
@@ -67,6 +68,21 @@ export class SessionHub {
 
   invoke(endpoint: SessionEndpoint, params: InvokeParams): Envelope {
     if (this.stopping) return fail("STOPPING", "Reactive data is stopping");
+    try {
+      params = prepareWireValue(params);
+    } catch (error) {
+      return fail(
+        "INVALID_INPUT",
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    if (
+      !params ||
+      typeof params !== "object" ||
+      typeof params.session !== "string" ||
+      typeof params.name !== "string"
+    )
+      return fail("INVALID_INPUT", "Malformed operation");
     const session = this.current(endpoint, params.session);
     if (!session) return fail("STALE_SESSION", "The renderer session is stale");
     if (params.kind !== "query" && params.kind !== "mutation")
@@ -88,7 +104,9 @@ export class SessionHub {
     const handler = group[params.name]!;
     let input: unknown;
     try {
-      input = handler.validate ? handler.validate(params.input) : params.input;
+      input = prepareWireValue(
+        handler.validate ? handler.validate(params.input) : params.input,
+      );
     } catch (error) {
       return fail(
         "INVALID_INPUT",
@@ -99,10 +117,7 @@ export class SessionHub {
       const value =
         params.kind === "mutation"
           ? this.mutate(() => handler.run(input))
-          : handler.run(input);
-      if (value && typeof (value as any).then === "function")
-        throw new Error("Async handlers are not supported");
-      assertWireValue(value);
+          : prepareWireValue(handler.run(input));
       return { ok: true, value };
     } catch (error) {
       return fail(

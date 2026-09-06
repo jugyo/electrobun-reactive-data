@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PROTOCOL_VERSION } from "../src/protocol.js";
-import { defineApi } from "../src/main/api.js";
+import { defineApi, type ApiDefinition } from "../src/main/api.js";
 import { createDataOwner } from "../src/main/owner.js";
 import { defineTrigger } from "../src/main/sqlite.js";
 import type { SessionEndpoint } from "../src/main/hub.js";
@@ -26,7 +26,8 @@ function createFixture(
       db.exec(
         "CREATE TABLE todos(id INTEGER PRIMARY KEY, title TEXT NOT NULL)",
       );
-      return defineApi({
+      // Deliberately bypass compile-time guards to exercise JavaScript callers.
+      const definition: ApiDefinition = {
         query: {
           todos: {
             dependsOn: ["todos"],
@@ -67,7 +68,8 @@ function createFixture(
           },
           ...overrides,
         },
-      });
+      };
+      return definition;
     },
     triggers: [defineTrigger({ table: "todos" })],
   });

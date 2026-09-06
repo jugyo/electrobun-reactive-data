@@ -1,5 +1,10 @@
 export const PROTOCOL_VERSION = 1;
-export const MAX_WIRE_BYTES = 256 * 1024;
+export {
+  MAX_WIRE_BYTES,
+  MAX_WIRE_DEPTH,
+  assertWireValue,
+  prepareWireValue,
+} from "./wire.js";
 export const MAX_QUERIES = 256;
 
 export type OperationKind = "query" | "mutation";
@@ -45,23 +50,3 @@ export type ReactiveRpcSchema = {
   };
   webview: { requests: {}; messages: { changed: ChangedMessage } };
 };
-
-export function assertWireValue(value: unknown): void {
-  const encoded = JSON.stringify(value, (_key, item) => {
-    if (
-      typeof item === "bigint" ||
-      typeof item === "function" ||
-      typeof item === "symbol" ||
-      item === undefined
-    ) {
-      throw new Error("Unsupported wire value");
-    }
-    return item;
-  });
-  if (
-    encoded === undefined ||
-    new TextEncoder().encode(encoded).byteLength > MAX_WIRE_BYTES
-  ) {
-    throw new Error("Wire value exceeds the supported payload size");
-  }
-}

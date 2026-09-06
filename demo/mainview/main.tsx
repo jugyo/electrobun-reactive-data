@@ -37,12 +37,12 @@ function App() {
         api.mutation.recordNativeSmoke({
           stage,
           windowId: Number((window as any).__electrobunWindowId),
-          payload: {
+          payload: JSON.stringify({
             filter,
             status: todos.status,
             refreshCount: todos.refreshCount,
             rows: todos.status === "success" ? todos.data : [],
-          },
+          }),
         }),
       snapshot: () => ({
         windowId: Number((window as any).__electrobunWindowId),
