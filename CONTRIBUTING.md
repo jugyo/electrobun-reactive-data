@@ -7,6 +7,8 @@ Use macOS 14+ on Apple Silicon for the currently verified native workflow. Insta
 ```sh
 npm ci
 npm run prepare:native
+npm run format:check
+npm run lint
 npm test
 npm run build
 ./node_modules/.bin/electrobun build --env=dev
@@ -17,6 +19,6 @@ For package-consumer validation, pack locally, reinstall the archive into `examp
 
 Keep changes narrow and write documentation, comments, and commit messages in English. Preserve the `/main`, `/client`, and `/react` boundaries. Renderer code must not import main-process or SQLite values. Test query subscriptions, errors, transaction ordering, and lifecycle changes against the real implementation paths. Add native coverage for changes crossing the view bridge or application lifecycle.
 
-Report commands, runtime versions, failures, and limitations honestly. Native regression commands test renderer APIs and React snapshots, not visual quality or human typing. Never commit databases, credentials, devkit downloads, node_modules, or native builds. Run `git diff --check` and inspect the complete staged diff and archive contents before committing. There is currently no lint script or hosted CI; local checks and macOS native evidence are required.
+Report commands, runtime versions, failures, and limitations honestly. Native regression commands test renderer APIs and React snapshots, not visual quality or human typing. Never commit databases, credentials, devkit downloads, node_modules, or native builds. Run `git diff --check` and inspect the complete staged diff and archive contents before committing. Prettier and Oxlint are pinned; use `npm run format` for mechanical formatting. The macOS GitHub Actions workflow checks formatting, lint, types, tests, renderer boundaries, exports, and packed-consumer builds. Native GUI acceptance remains a separately recorded local release gate; a configured workflow is not evidence of a successful hosted run.
 
 Pull requests should include a summary, acceptance criteria, test plan, executed evidence, and `UI / visual candidate: yes` or `no` with a reason. Do not add new runtimes, transports, automatic migrations, or npm publication as incidental changes.

@@ -134,7 +134,39 @@ The main entry point exports `createReactiveData`, `defineApi`, and `defineTrigg
 
 The browser entry point exports `createReactiveDataClient<AppApi>()`; `/react` exports `ReactiveDataProvider` and `useLiveQuery`. Import the main API type with `import type` only. Query parameters create independent cache entries while subscriptions use the operation ID. A full active-query set is replaced on every subscription revision. Reload/reconnect creates a new generation and re-fetches accepted active queries.
 
-Provider unmount stops its runtime. Direct runtime owners must call `runtime.stop()`; stopped clients cannot restart. Subscription failures are logged and do not trigger background retry loops. A subsequent query/explicit `refresh()` or subscription change retries submission. Query invocation has one recovery attempt after a stale session or transport failure; mutations are never automatically retried because their commit outcome may be unknown.
+The last provider unmount stops its runtime. Direct runtime owners must call `runtime.stop()`; stopped clients cannot restart. Subscription failures put active live queries into `status: "error"` and do not trigger background retry loops. A subsequent query/explicit `refresh()` or subscription change retries submission. Query invocation has one recovery attempt after a stale session or transport failure; mutations are never automatically retried because their commit outcome may be unknown.
+
+### Errors and synchronous DTOs
+
+```ts
+import {
+  createReactiveDataClient,
+  ReactiveDataError,
+} from "@jugyo/electrobun-reactive-data/client";
+import type { AppApi } from "./bun/api";
+
+const { api, runtime } = createReactiveDataClient<AppApi>({
+  onError(error) {
+    // Background connection/subscription errors; show an application notification.
+    console.error(error.code, error.message);
+  },
+});
+
+try {
+  await api.mutation.add({ title: "Hello" });
+} catch (error) {
+  if (error instanceof ReactiveDataError)
+    console.error(error.code, error.message);
+}
+```
+
+Direct operations reject with `ReactiveDataError` (including server codes, `TRANSPORT`, and `STOPPED`). Live-query errors are delivered through the hook snapshot; `refresh()` attempts another read but reports read failure in the snapshot rather than rejecting. Background errors also call optional `onError`, or log by default. A failed subscription stays visible until that query's subscription is accepted and a fresh read succeeds; an older in-flight success cannot clear it. Hook errors do not automatically throw into a React error boundary.
+
+Handlers and validators must be synchronous. Inputs, normalized inputs, and outputs must be finite JSON DTOs: null, booleans, strings, finite numbers, dense arrays, and plain objects containing those values. Accessors, custom prototypes, `Date`, bigint, undefined (including array holes), functions, promises, symbols, cycles, and non-finite numbers are rejected. Shared references without cycles are allowed. Compile-time checks support named interfaces and readonly tuples, reject common invalid types, and stop at 16 nested type levels; runtime validation remains authoritative with a 64-level nesting limit.
+
+The encoded JSON ceiling is 256 KiB (UTF-8): the client checks the input value; main dispatch checks the complete invoke parameter object (session, kind, name, input); normalized input and result values are each checked separately. Response-envelope overhead is not counted. Leave room for the invocation envelope when sending large inputs. Mutation output validation happens before commit, so invalid output rolls back without invalidation. Getters and `toJSON` are not intentionally invoked; hostile Proxy side effects are outside the contract.
+
+Pre-1.0 migration: serialize dates explicitly, convert bigint IDs intentionally, return `null` instead of `void`, omit optional fields instead of assigning `undefined`, and move async/network work outside handlers. Recognizable async functions are rejected before execution; this is not cancellation and cannot undo concealed asynchronous work. These stricter contracts intentionally reject previously accepted lossy JSON conversions.
 
 `createWindow` owns the view RPC and admits only local `views://` URLs. Navigation is restricted to the initial URL's view host (for example, `views://notes/*`), not a hard-coded demo name. Remote privileged views and custom RPC composition are not supported. Caller-supplied navigation/sandbox settings do not override this policy.
 

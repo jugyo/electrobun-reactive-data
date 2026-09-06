@@ -1,6 +1,6 @@
 # API safety and quality policy toward 1.0
 
-Status: proposed implementation design, not implemented behavior. Date: 2026-09-06.
+Status: implementation steps 1–4 implemented; final distribution verification is recorded in VERIFICATION.md. Real-application feedback and the explicit 1.0 release review remain open. Updated: 2026-09-07.
 
 ## Decisions
 
@@ -9,7 +9,7 @@ Status: proposed implementation design, not implemented behavior. Date: 2026-09-
 3. Form state, typing ergonomics, optimistic updates, and edit conflicts belong to applications. They are not library features or prerequisites for 1.0.
 4. Establish readable code, enforceable boundaries, regression coverage, and repeatable distribution checks before declaring stability.
 
-This document authorizes no implementation or release by itself. Public examples below are proposed APIs. The package remains experimental; implementation and migration notes must precede a version change.
+This document preserves the design rationale, including descriptions of the original gaps. README.md describes the implemented public contract and migration. The package remains experimental; no version bump or npm publication is included.
 
 ## 1. UI-handled errors
 
