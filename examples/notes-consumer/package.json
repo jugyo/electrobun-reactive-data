@@ -13,7 +13,7 @@
     "native:run": "electrobun run --env=dev"
   },
   "dependencies": {
-    "@jugyo/electrobun-reactive-data": "file:vendor/jugyo-electrobun-reactive-data-0.0.0-poc.tgz",
+    "@jugyo/electrobun-reactive-data": "file:vendor/jugyo-electrobun-reactive-data-0.1.0.tgz",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },

@@ -27,7 +27,7 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm pack --pack-destination examples/notes-consumer/vendor
-      - run: npm install ./vendor/jugyo-electrobun-reactive-data-0.0.0-poc.tgz --ignore-scripts
+      - run: npm install ./vendor/jugyo-electrobun-reactive-data-0.1.0.tgz --ignore-scripts
         working-directory: examples/notes-consumer
       - run: npm run prepare:native && npm run build
         working-directory: examples/notes-consumer

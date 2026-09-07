@@ -1,6 +1,6 @@
 # Electrobun Reactive Data
 
-Independent, experimental library for typed, reactive `bun:sqlite` data shared by multiple Electrobun windows. It owns one SQLite connection in the Bun main process and uses Electrobun's per-view RPC; the application creates no HTTP or WebSocket listener and exposes no port or origin setting. Source is public on GitHub under MIT; version `0.0.0-poc` is not a stable release and is not published to npm.
+Independent library for typed, reactive `bun:sqlite` data shared by multiple Electrobun windows. It owns one SQLite connection in the Bun main process and uses Electrobun's per-view RPC; the application creates no HTTP or WebSocket listener and exposes no port or origin setting. Version `0.1.0` is an early release under MIT, not a stable 1.0 API.
 
 This repository independently specializes selected ideas and source from [@jugyo/reactive-data](https://github.com/jugyo/reactive-data/tree/aae2542fe4ab640d1ac5176b3ff02d8a00a0fb06). The retained MIT license is in [LICENSE](LICENSE). The HTTP/WebSocket and Node transports were deliberately not copied.
 
@@ -9,7 +9,17 @@ This repository independently specializes selected ideas and source from [@jugyo
 - Electrobun/Hutch SDK: exactly `2.0.1`
 - Electrobun bundled Bun runtime: `1.4.0`
 - React/React DOM: `19.1.1`
-- macOS 14+ on Apple Silicon is the native PoC target
+- Support is limited to the verified macOS / Apple Silicon workflow (macOS 14+ target). Windows, Linux, and Intel Macs are not certified.
+
+Before 1.0, patch releases (`0.1.x`) contain compatible fixes; breaking API changes require a new minor version (`0.2.0`) and migration notes. Only `/main`, `/client`, and `/react` are public contracts. Schema migrations, signing, and application form behavior remain application responsibilities.
+
+## Install
+
+```sh
+npm install @jugyo/electrobun-reactive-data@0.1.0 electrobun@2.0.1 react@19.1.1 react-dom@19.1.1
+```
+
+Use this package in an Electrobun application with the Bun main process and a prepared devkit. It ships TypeScript source for the verified Bun/Vite toolchain; it is not a standalone Node.js server package. See the Vite alias configuration below.
 
 The checked-in npm lockfile pins JavaScript dependencies. `.hutch/devkit` and native artifacts are generated and ignored.
 
@@ -178,12 +188,12 @@ The library is independent of the original reactive-data workspace. It ships Typ
 # From this library directory; validates public exports/types before packing.
 npm pack --pack-destination examples/notes-consumer/vendor
 cd examples/notes-consumer
-npm install ./vendor/jugyo-electrobun-reactive-data-0.0.0-poc.tgz
+npm install ./vendor/jugyo-electrobun-reactive-data-0.1.0.tgz
 npm run prepare:native
 npm run build
 ```
 
-`private: true` prevents accidental npm publication; it does not restrict use of this public MIT-licensed source. Clone and pack locally using the prepared devkit. Direct Git dependency installation is not the supported workflow because packing requires development tools and the Electrobun devkit.
+Use npm for released versions, or clone and pack locally using the prepared devkit for development. Direct Git dependency installation is not the supported workflow because packing requires development tools and the Electrobun devkit.
 
 ## Native regression checks
 

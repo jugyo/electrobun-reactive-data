@@ -47,10 +47,14 @@ Earlier native bootstrap failures revealed that Vite must use `electrobunViteAli
 
 ## Distribution scope
 
-Source is published as an experimental MIT-licensed GitHub repository. npm publication is disabled. The packed consumer uses only public exports, and installed source was byte-compared against the library. Archives exclude tests, demos, databases, credentials, generated native builds, and devkits.
+### 0.1.0 release validation
+
+The 0.1.0 release passed formatting, lint, 35 tests, typecheck, build, export checks, packed Notes installation/build, and source comparison. No runtime implementation changed. The reviewed 17-file archive has SHA-1 `c86a528fa0c6081550555ca070145be145488e6b`. `npm publish` completed successfully after interactive account authentication on 2026-09-07. After a short metadata propagation delay, the registry reported version and latest tag `0.1.0`; the downloaded public archive matched the reviewed hash.
+
+Source is published as an MIT-licensed GitHub repository. npm publication as 0.1.0 is approved. The packed consumer uses only public exports, and installed source was byte-compared against the library. Archives exclude tests, demos, databases, credentials, generated native builds, and devkits. The archive hash above records pre-release validation, not the 0.1.0 archive.
 
 UI / visual candidate: yes — error snapshots affect the Todo example; human interaction and visual checks remain separate from native data-path tests.
 
 ## Remaining release gates
 
-Implementation steps 1–4 of `docs/quality-and-api-design.md` are complete. The macOS GitHub Actions workflow is configured but has not been pushed or run on a hosted runner. Native GUI evidence is local only. Windows, Linux, signing/notarization, and human interaction are not certified. A real application's usage feedback, a successful hosted check run, and an explicit error/DTO compatibility and support-matrix review remain necessary before choosing 1.0.0. This work does not bump the version, publish npm packages, or push commits.
+Implementation steps 1–4 of `docs/quality-and-api-design.md` are complete. [GitHub Actions run 34069413222](https://github.com/jugyo/electrobun-reactive-data/actions/runs/34069413222) passed all checks, including the packed-consumer build. Native GUI evidence is local only. Windows, Linux, Intel Macs, signing/notarization, and human interaction are not certified. README.md defines the support scope and pre-1.0 compatibility policy. Real-application feedback remains a user-owned follow-up before choosing 1.0.0; it does not block the approved 0.1.0 npm release.

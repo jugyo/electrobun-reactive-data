@@ -1,7 +1,10 @@
 {
   "name": "@jugyo/electrobun-reactive-data",
-  "version": "0.0.0-poc",
-  "private": true,
+  "version": "0.1.0",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "description": "Typed reactive SQLite data for local Electrobun applications.",
   "license": "MIT",
   "repository": {
