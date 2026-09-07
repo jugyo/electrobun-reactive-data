@@ -15,7 +15,21 @@ npm run build
 npm run native:acceptance
 ```
 
-For package-consumer validation, pack locally, reinstall the archive into `examples/notes-consumer`, build that application, and run `npm run native:acceptance:notes` from the library root. See README.md for exact commands. Keep the checked-in consumer archive and lockfile synchronized with library changes; inspect its contents before committing.
+For package-consumer validation, pack locally, reinstall the archive into `examples/notes-consumer`, and build that application:
+
+```sh
+npm pack --pack-destination examples/notes-consumer/vendor
+cd examples/notes-consumer
+npm install ./vendor/jugyo-electrobun-reactive-data-0.1.0.tgz
+npm run prepare:native
+npm run build
+```
+
+Build the Todo native app with `npm run build && ./node_modules/.bin/electrobun build --env=dev`, then run `npm run native:acceptance`. Build Notes with `npm run native:build` in its directory, then run `npm run native:acceptance:notes` from the library root. Each acceptance command starts a packaged app with a fresh temporary database, checks both WebViews and persistence after relaunch, and retains its report. The 60-second deadline is a failure guard, not a benchmark.
+
+Keep the checked-in consumer archive and lockfile synchronized with library changes; inspect its contents before committing. Direct Git dependency installation is not supported because packing needs development tools and the prepared devkit.
+
+The checked-in npm lockfile pins JavaScript dependencies. `.hutch/devkit` and native artifacts are generated and ignored.
 
 Keep changes narrow and write documentation, comments, and commit messages in English. Preserve the `/main`, `/client`, and `/react` boundaries. Renderer code must not import main-process or SQLite values. Test query subscriptions, errors, transaction ordering, and lifecycle changes against the real implementation paths. Add native coverage for changes crossing the view bridge or application lifecycle.
 

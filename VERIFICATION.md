@@ -41,7 +41,7 @@ On Node 26.7.0 / Bun 1.3.14, `bun test test/sqlite-reconcile.test.ts` initially 
 
 `bun test test/react-lifecycle.test.tsx` reproduced reverse-order teardown leaving the stop count at 0 instead of 1. The cleanup-generation diff now assigns a generation when releasing a root and makes release idempotent. An earlier assertion requiring a final empty subscription submission was corrected: stopping legitimately cancels pending submission, so the test checks final stop and subscription uniqueness instead.
 
-Public error delivery and DTO validation are documented in README.md, including pre-1.0 migration, byte accounting, and the distinction between async rejection and cancellation. Renderer checks now parse TypeScript imports/re-exports, traverse reachable local modules, and inspect fresh bundles; no additional package entry point was added.
+Public error delivery and DTO validation are documented in `docs/getting-started.md`, including pre-1.0 migration, byte accounting, and the distinction between async rejection and cancellation. Renderer checks now parse TypeScript imports/re-exports, traverse reachable local modules, and inspect fresh bundles; no additional package entry point was added.
 
 Earlier native bootstrap failures revealed that Vite must use `electrobunViteAliases` from the prepared devkit. Accessibility automation was unavailable, so the native bridge harness was used. Earlier observation-only reports are not treated as automated assertions.
 
@@ -57,4 +57,4 @@ UI / visual candidate: yes — error snapshots affect the Todo example; human in
 
 ## Remaining release gates
 
-Implementation steps 1–4 of `docs/quality-and-api-design.md` are complete. [GitHub Actions run 34069413222](https://github.com/jugyo/electrobun-reactive-data/actions/runs/34069413222) passed all checks, including the packed-consumer build. Native GUI evidence is local only. Windows, Linux, Intel Macs, signing/notarization, and human interaction are not certified. README.md defines the support scope and pre-1.0 compatibility policy. Real-application feedback remains a user-owned follow-up before choosing 1.0.0; it does not block the approved 0.1.0 npm release.
+Implementation steps 1–4 of `docs/quality-and-api-design.md` are complete. [GitHub Actions run 34069413222](https://github.com/jugyo/electrobun-reactive-data/actions/runs/34069413222) passed all checks, including the packed-consumer build. Native GUI evidence is local only. Windows, Linux, Intel Macs, signing/notarization, and human interaction are not certified. README.md summarizes the support scope and `docs/getting-started.md` defines the detailed constraints and pre-1.0 compatibility policy. Real-application feedback remains a user-owned follow-up before choosing 1.0.0; it does not block the approved 0.1.0 npm release.
