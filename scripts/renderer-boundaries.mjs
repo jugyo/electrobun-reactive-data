@@ -60,7 +60,7 @@ export function checkRendererGraph(
   const walk = (file) => {
     file = resolve(file);
     if (visited.has(file)) return;
-    if (/(?:\/src\/main\/|\/src\/bun\/|\/demo\/bun\/)/.test(file))
+    if (/(?:\/src\/main\/|\/src\/bun\/|\/test\/main\.ts$)/.test(file))
       throw new Error(`Forbidden renderer module: ${file}`);
     visited.add(file);
     for (const name of runtimeImports(read(file), file)) {

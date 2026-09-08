@@ -1,5 +1,15 @@
 import { createReactiveDataClient } from "../src/client/index.js";
-import type { AppApi } from "../demo/bun/index.js";
+import { defineApi } from "../src/main/api.js";
+const definition = defineApi({
+  query: {
+    todos: {
+      dependsOn: ["todos"],
+      run: (_input: { filter: "all" | "active" }) => [] as { title: string }[],
+    },
+  },
+  mutation: { addTodo: { run: (_input: { title: string }) => ({ ok: true }) } },
+});
+type AppApi = typeof definition;
 const { api } = createReactiveDataClient<AppApi>();
 api.mutation.addTodo({ title: "valid" });
 // @ts-expect-error title must be a string

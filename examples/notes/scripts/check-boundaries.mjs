@@ -16,4 +16,9 @@ const bundle = walk("dist")
   .join("\n");
 if (/bun:sqlite|electrobun\/main|CREATE TABLE|native_reports/.test(bundle))
   throw new Error("Renderer bundle contains main implementation");
+if (
+  process.env.ERD_NATIVE_TEST !== "1" &&
+  /__notesSmoke|Injected subscription failure|failAfterWrite/.test(bundle)
+)
+  throw new Error("Normal renderer bundle contains native test hooks");
 console.log("Notes consumer boundary check passed");

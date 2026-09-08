@@ -11,21 +11,23 @@ npm run format:check
 npm run lint
 npm test
 npm run build
-./node_modules/.bin/electrobun build --env=dev
+npm run example:check
 npm run native:acceptance
 ```
 
-For package-consumer validation, pack locally, reinstall the archive into `examples/notes-consumer`, and build that application:
+`npm run build` checks the library types, public exports, and renderer source boundaries. `npm run example:check` packs the current library, installs it into `examples/notes`, prepares its devkit, and builds the application with fresh renderer-bundle checks. The equivalent manual workflow is:
 
 ```sh
-npm pack --pack-destination examples/notes-consumer/vendor
-cd examples/notes-consumer
+npm pack --pack-destination examples/notes/vendor
+cd examples/notes
 npm install ./vendor/jugyo-electrobun-reactive-data-0.1.0.tgz
 npm run prepare:native
 npm run build
 ```
 
-Build the Todo native app with `npm run build && ./node_modules/.bin/electrobun build --env=dev`, then run `npm run native:acceptance`. Build Notes with `npm run native:build` in its directory, then run `npm run native:acceptance:notes` from the library root. Each acceptance command starts a packaged app with a fresh temporary database, checks both WebViews and persistence after relaunch, and retains its report. The 60-second deadline is a failure guard, not a benchmark.
+Run `npm run dev` from the library root to open Notes after package-consumer setup. Run `npm run native:acceptance` from the root for the complete native regression suite. It rebuilds Notes with the test-only main and renderer entrypoints under `examples/notes/test`, starts a fresh temporary database, checks both WebViews and persistence after relaunch, and retains its report. The 60-second deadline is a failure guard, not a benchmark. Builds share output directories, so run normal and native-test builds sequentially.
+
+Notes is the only application. Its normal `src` uses public package exports and contains no fault injection, smoke globals, report tables, or failing test mutations. Native tests add those hooks only through the test entrypoints; the normal renderer bundle check rejects leaked test hooks. Run `npm run native:build` inside `examples/notes` to produce a normal native build again. The former `native:acceptance:notes` alias and root Todo build commands are replaced by the single workflow above.
 
 Keep the checked-in consumer archive and lockfile synchronized with library changes; inspect its contents before committing. Direct Git dependency installation is not supported because packing needs development tools and the prepared devkit.
 

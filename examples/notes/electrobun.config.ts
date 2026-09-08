@@ -7,7 +7,12 @@ export default {
   },
   build: {
     mainProcess: "bun",
-    bun: { entrypoint: "src/bun/index.ts" },
+    bun: {
+      entrypoint:
+        process.env.ERD_NATIVE_TEST === "1"
+          ? "test/main.ts"
+          : "src/bun/index.ts",
+    },
     copy: {
       "dist/index.html": "views/notes/index.html",
       "dist/assets": "views/notes/assets",

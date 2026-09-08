@@ -1,6 +1,6 @@
 # Getting started and usage
 
-This guide covers the public API and operational constraints of Electrobun Reactive Data `0.1.0`. For a complete application, see the independently installed [Notes consumer](../examples/notes-consumer).
+This guide covers the public API and operational constraints of Electrobun Reactive Data `0.1.0`. For a complete application, see the independently installed [Notes example](../examples/notes).
 
 ## Prerequisites
 

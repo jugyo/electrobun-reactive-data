@@ -1,58 +1,29 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { createReactiveDataClient } from "@jugyo/electrobun-reactive-data/client";
+import { api, runtime } from "./client.js";
 import {
   ReactiveDataProvider,
   useLiveQuery,
 } from "@jugyo/electrobun-reactive-data/react";
-import type { NotesApi } from "../bun/index.js";
 import "./style.css";
-const { api, runtime } = createReactiveDataClient<NotesApi>();
 function App() {
-  const notes = useLiveQuery(api.query.notes, {});
+  const [search, setSearch] = useState("");
+  const notes = useLiveQuery(api.query.notes, { search });
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const rows = notes.status === "success" ? notes.data : [];
-  useEffect(() => {
-    (window as any).__notesSmoke = {
-      create: (nextTitle: string, nextBody: string) =>
-        api.mutation.create({ title: nextTitle, body: nextBody }),
-      editFirst: (nextBody: string) =>
-        rows[0] &&
-        api.mutation.update({
-          id: rows[0].id,
-          title: rows[0].title,
-          body: nextBody,
-        }),
-      deleteFirst: () => rows[0] && api.mutation.remove({ id: rows[0].id }),
-      report: (stage: string) =>
-        api.mutation.report({
-          stage,
-          windowId: Number((window as any).__electrobunWindowId),
-          payload: JSON.stringify({
-            status: notes.status,
-            refreshCount: notes.refreshCount,
-            rows,
-          }),
-        }),
-      snapshot: () => ({
-        windowId: Number((window as any).__electrobunWindowId),
-        status: notes.status,
-        refreshCount: notes.refreshCount,
-        rows,
-        text: document.body.innerText,
-      }),
-    };
-    return () => {
-      delete (window as any).__notesSmoke;
-    };
-  }, [notes, rows]);
   return (
     <main>
       <header>
-        <p>PACKAGED CONSUMER</p>
+        <p>REACTIVE SQLITE</p>
         <h1>Notes</h1>
       </header>
+      <input
+        aria-label="Search notes"
+        value={search}
+        onInput={(event) => setSearch(event.currentTarget.value)}
+        placeholder="Search notes…"
+      />
       <form
         onSubmit={(event) => {
           event.preventDefault();

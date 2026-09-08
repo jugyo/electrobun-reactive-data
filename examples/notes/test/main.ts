@@ -1,68 +1,27 @@
 import { Utils } from "electrobun/main";
-import { assertNotesAcceptance, assertNotesPersistence } from "./acceptance.js";
 import {
   createReactiveData,
   defineApi,
   defineTrigger,
 } from "@jugyo/electrobun-reactive-data/main";
+import { createNotesApi } from "../src/bun/api.js";
+import { assertNotesAcceptance, assertNotesPersistence } from "./assertions.js";
 
+// This entrypoint is used only by the native-test build.
 const data = createReactiveData({
   databasePath: process.env.ERD_NOTES_DATABASE,
   createApi(db) {
-    db.exec(
-      "CREATE TABLE IF NOT EXISTS notes(id INTEGER PRIMARY KEY, title TEXT NOT NULL, body TEXT NOT NULL, updated_at INTEGER NOT NULL)",
-    );
-    db.exec(
-      "CREATE TABLE IF NOT EXISTS native_reports(id INTEGER PRIMARY KEY, stage TEXT NOT NULL, window_id INTEGER NOT NULL, payload TEXT NOT NULL)",
-    );
+    const base = createNotesApi(db);
     return defineApi({
-      query: {
-        notes: {
-          dependsOn: ["notes"],
-          run: (_input: {}) =>
-            db
-              .query<
-                { id: number; title: string; body: string; updatedAt: number },
-                []
-              >(
-                "SELECT id, title, body, updated_at AS updatedAt FROM notes ORDER BY updated_at DESC, id DESC",
-              )
-              .all(),
-        },
-      },
+      ...base,
       mutation: {
-        create: {
-          validate: noteInput,
-          run(input: NoteInput) {
+        ...base.mutation,
+        failAfterWrite: {
+          run(_input: {}) {
             db.query(
-              "INSERT INTO notes(title, body, updated_at) VALUES (?, ?, ?)",
-            ).run(input.title, input.body, Date.now());
-            return { ok: true };
-          },
-        },
-        update: {
-          validate: updateInput,
-          run(input: NoteInput & { id: number }) {
-            db.query(
-              "UPDATE notes SET title=?, body=?, updated_at=? WHERE id=?",
-            ).run(input.title, input.body, Date.now(), input.id);
-            return { ok: true };
-          },
-        },
-        remove: {
-          validate: idInput,
-          run({ id }: { id: number }) {
-            db.query("DELETE FROM notes WHERE id=?").run(id);
-            return { ok: true };
-          },
-        },
-        report: {
-          validate: reportInput,
-          run(input: ReportInput) {
-            db.query(
-              "INSERT INTO native_reports(stage, window_id, payload) VALUES (?, ?, ?)",
-            ).run(input.stage, input.windowId, JSON.stringify(input.payload));
-            return { ok: true };
+              "INSERT INTO notes(title, body, updated_at) VALUES ('rollback probe', '', 0)",
+            ).run();
+            throw new Error("Intentional rollback probe");
           },
         },
       },
@@ -70,8 +29,7 @@ const data = createReactiveData({
   },
   triggers: [defineTrigger({ table: "notes" })],
 });
-export type NotesApi = typeof data.api;
-
+export type NativeApi = typeof data.api;
 const open = (title: string) =>
   data.createWindow({
     title,
@@ -86,59 +44,18 @@ type Pending = {
   timeout: ReturnType<typeof setTimeout>;
 };
 const channels = new WeakMap<object, { pending: Map<string, Pending> }>();
+
 if (process.env.ERD_NATIVE_ACCEPTANCE === "1")
   void runAcceptance(first, second);
 else if (process.env.ERD_NATIVE_VERIFY_PERSISTENCE === "1")
   void verifyPersistence(first, second);
+else throw new Error("Native test entrypoint requires an acceptance phase");
 
-type NoteInput = { title: string; body: string };
-function noteInput(input: unknown): NoteInput {
-  if (
-    !input ||
-    typeof input !== "object" ||
-    !("title" in input) ||
-    typeof input.title !== "string" ||
-    !("body" in input) ||
-    typeof input.body !== "string"
-  )
-    throw new Error("Invalid note");
-  const title = input.title.trim();
-  if (!title || title.length > 120 || input.body.length > 10_000)
-    throw new Error("Invalid note");
-  return { title, body: input.body };
-}
-function idInput(input: unknown): { id: number } {
-  if (
-    !input ||
-    typeof input !== "object" ||
-    !("id" in input) ||
-    !Number.isSafeInteger(input.id)
-  )
-    throw new Error("Invalid id");
-  return { id: Number(input.id) };
-}
-function updateInput(input: unknown): NoteInput & { id: number } {
-  return { ...noteInput(input), ...idInput(input) };
-}
-type ReportInput = { stage: string; windowId: number; payload: string };
-function reportInput(input: unknown): ReportInput {
-  if (
-    !input ||
-    typeof input !== "object" ||
-    !("stage" in input) ||
-    typeof input.stage !== "string" ||
-    !("windowId" in input) ||
-    !Number.isSafeInteger(input.windowId) ||
-    !("payload" in input) ||
-    typeof input.payload !== "string"
-  )
-    throw new Error("Invalid report");
-  return input as ReportInput;
-}
 async function runAcceptance(a: typeof first, b: typeof second) {
+  const stages: Record<string, unknown> = {};
   const evidence: Record<string, unknown> = {
     runtime: `Bun ${Bun.version}`,
-    stages: {},
+    stages,
   };
   try {
     await Promise.all([waitDom(a), waitDom(b)]);
@@ -147,10 +64,25 @@ async function runAcceptance(a: typeof first, b: typeof second) {
       'await window.__notesSmoke.create("native note","first body")',
     );
     await Bun.sleep(400);
-    (evidence.stages as any).created = await both(a, b);
+    stages.created = await both(a, b);
+    await command(a, "window.__notesSmoke.failSubscription()");
+    await Bun.sleep(400);
+    stages.subscriptionError = await snapshot(a);
+    await command(a, "await window.__notesSmoke.recoverSubscription()");
+    await Bun.sleep(400);
+    stages.subscriptionRecovered = await snapshot(a);
     await command(b, 'await window.__notesSmoke.editFirst("edited body")');
     await Bun.sleep(400);
-    (evidence.stages as any).edited = await both(a, b);
+    stages.edited = await both(a, b);
+    await command(
+      a,
+      'await window.__notesSmoke.create("other note","filter probe")',
+    );
+    await Bun.sleep(400);
+    await command(a, 'window.__notesSmoke.search("native")');
+    await command(b, 'window.__notesSmoke.search("other")');
+    await Bun.sleep(400);
+    stages.filters = await both(a, b);
     const reload = waitDom(a);
     a.webview.loadURL("views://notes/index.html");
     await reload;
@@ -159,11 +91,26 @@ async function runAcceptance(a: typeof first, b: typeof second) {
       'await window.__notesSmoke.create("after reload","persist me")',
     );
     await Bun.sleep(400);
-    (evidence.stages as any).reloaded = await both(a, b);
-    await command(b, "await window.__notesSmoke.deleteFirst()");
+    stages.reloaded = await both(a, b);
+    await command(a, "await window.__notesSmoke.deleteFirst()");
     await Bun.sleep(400);
-    (evidence.stages as any).deleted = await both(a, b);
-    assertNotesAcceptance(evidence.stages as Record<string, unknown>);
+    stages.deleted = await both(a, b);
+    a.close();
+    await Bun.sleep(300);
+    await command(b, 'window.__notesSmoke.search("")');
+    await command(
+      b,
+      'await window.__notesSmoke.create("after close","still updating")',
+    );
+    await Bun.sleep(400);
+    stages.beforeRollback = await snapshot(b);
+    await command(b, "await window.__notesSmoke.rollback()");
+    await Bun.sleep(400);
+    stages.afterRollback = await snapshot(b);
+    const before = await snapshot(b);
+    await Bun.sleep(17_000);
+    stages.idle = { before, after: await snapshot(b) };
+    assertNotesAcceptance(stages);
     evidence.ok = true;
   } catch (error) {
     evidence.ok = false;

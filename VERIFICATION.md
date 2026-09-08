@@ -1,5 +1,19 @@
 # Verification record
 
+## Notes consolidation — 2026-09-08
+
+The single application is now `examples/notes`. Its normal source uses only public package exports; native fault injection and orchestration live under `examples/notes/test` and are selected only for test builds. The library implementation and published API are unchanged. The local consumer archive is repacked for development, not republished to npm.
+
+Todo-only scenarios were preserved in the Notes suite: subscription failure/recovery, independent query parameters (per-window search), reload recovery, writes after closing a window, rollback without invalidation, 17 seconds idle without refetch, clean quit, and persistence after relaunch. Assertions compare the actual React-rendered rows as well as data snapshots, and verify the displayed subscription error. Negative tests reject missing/stale UI, filters, rows, and unexpected refreshes.
+
+Final checks passed: `npm ci --ignore-scripts --offline`, `npm run prepare:native`, formatting, lint, 35 tests / 151 assertions, library typecheck/build/exports, and `npm run example:check`. A fresh Notes directory outside the checkout also passed offline installation, devkit preparation, typecheck, and build without parent dependencies (npm/devkit caches were available). The final native rerun passed both phases with clean exits; retained report directory: `erd-notes-acceptance-gBS0UZ`. A subsequent normal native build passed, including the guard against test hooks in its renderer bundle. Native builds emitted only the optional missing-icon warning. Hosted CI was updated to the single example-check command but has not run for this uncommitted change.
+
+Initial validation found a DOM iterable type mismatch in the new harness (`npm run typecheck` in the example, TS2488, Node 26.7.0); using `Array.from` fixed it. The first native run rejected a missing smoke hook: the Vite HTML replacement ran after entrypoint processing. Moving it to a pre-transform fixed the test entrypoint. Normal and test builds must also run sequentially because they share output. `npm run native:acceptance` then passed both acceptance and persistence with clean process exits; retained report directory: `erd-notes-acceptance-xhLD8N`.
+
+UI / visual candidate: yes — Notes now exposes per-window search. Native checks exercise the input event and verify React-rendered results; they do not certify human typing or visual quality. Historical evidence below describes the earlier two-application layout.
+
+## Pre-consolidation evidence
+
 Date: 2026-09-07. Host: macOS arm64. Node 26.7.0; host Bun 1.3.14; Electrobun 2.0.1 with bundled Bun 1.4.0.
 
 ## Executed checks

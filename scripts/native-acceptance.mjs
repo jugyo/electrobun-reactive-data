@@ -1,18 +1,15 @@
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import assert from "node:assert/strict";
 
 // Run from the library root. Each run uses fresh data and preserves its evidence.
-const notes = process.argv[2] === "notes";
-const cwd = resolve(notes ? "examples/notes-consumer" : ".");
-const app = notes
-  ? "Reactive Notes Consumer-dev.app"
-  : "Electrobun Reactive Data Todo-dev.app";
-const directory = await mkdtemp(
-  join(tmpdir(), notes ? "erd-notes-acceptance-" : "erd-todo-acceptance-"),
-);
+const cwd = resolve("examples/notes");
+const app = "Reactive Notes Consumer-dev.app";
+// Always rebuild the test-only entrypoints so normal app builds cannot be mistaken for tests.
+execFileSync("npm", ["run", "native:test:build"], { cwd, stdio: "inherit" });
+const directory = await mkdtemp(join(tmpdir(), "erd-notes-acceptance-"));
 const launcher = join(
   cwd,
   "build/dev-macos-arm64",
@@ -27,10 +24,7 @@ for (const phase of ["acceptance", "persistence"]) {
     ERD_NATIVE_ACCEPTANCE: phase === "acceptance" ? "1" : "0",
     ERD_NATIVE_VERIFY_PERSISTENCE: phase === "persistence" ? "1" : "0",
     ERD_NATIVE_REPORT: report,
-    [notes ? "ERD_NOTES_DATABASE" : "ERD_TODO_DATABASE"]: join(
-      directory,
-      "data.sqlite",
-    ),
+    ERD_NOTES_DATABASE: join(directory, "data.sqlite"),
   };
   await new Promise((resolveRun, reject) => {
     const child = spawn(launcher, [], { cwd, env, stdio: "inherit" });

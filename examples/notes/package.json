@@ -9,7 +9,9 @@
     "build:view": "vite build",
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "build": "npm run typecheck && npm run build:view && npm run check:boundaries && electrobun config --env=dev",
-    "native:build": "npm run build:view && electrobun build --env=dev",
+    "native:build": "npm run build:view && npm run check:boundaries && electrobun build --env=dev",
+    "native:test:build": "npm run typecheck && ERD_NATIVE_TEST=1 npm run native:build",
+    "dev": "npm run build:view && electrobun dev",
     "native:run": "electrobun run --env=dev"
   },
   "dependencies": {

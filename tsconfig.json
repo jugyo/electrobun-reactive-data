@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "types": ["bun"]
   },
-  "include": ["src", "demo", "test", "electrobun.config.ts", "vite.config.ts"]
+  "include": ["src", "test"]
 }

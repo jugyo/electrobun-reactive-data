@@ -14,7 +14,7 @@ npm install @jugyo/electrobun-reactive-data@0.1.0 electrobun@2.0.1 react@19.1.1 
 
 Follow the [getting-started guide](docs/getting-started.md) to configure your app, define SQLite queries and mutations, and connect them to React with `useLiveQuery`. The guide includes the required devkit and Vite setup.
 
-For a working multi-window app, see the [Notes example](examples/notes-consumer).
+For a working multi-window app, see the [Notes example](examples/notes).
 
 ## Support
 

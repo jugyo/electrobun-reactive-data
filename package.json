@@ -33,15 +33,13 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "check:boundaries": "node scripts/check-boundaries.mjs",
-    "build:view": "vite build",
-    "build": "npm run typecheck && npm run build:view && npm run check:boundaries && npm run check:exports && electrobun config --env=dev",
+    "build": "npm run typecheck && npm run check:boundaries && npm run check:exports",
+    "example:check": "node scripts/check-example.mjs",
     "check:exports": "node scripts/check-exports.mjs",
     "native:acceptance": "node scripts/native-acceptance.mjs",
-    "native:acceptance:notes": "node scripts/native-acceptance.mjs notes",
     "prepack": "npm run typecheck && npm run check:exports",
     "prepare:native": "electrobun prepare",
-    "dev": "npm run build:view && electrobun dev",
-    "native:smoke": "npm run build:view && electrobun run --env=dev"
+    "dev": "npm --prefix examples/notes run dev"
   },
   "peerDependencies": {
     "electrobun": "2.0.1",
