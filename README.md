@@ -4,11 +4,13 @@ Typed, reactive SQLite for [Electrobun](https://electrobun.dev/) apps. Define qu
 
 ## Install
 
-Install the package and its pinned peers in an Electrobun application:
+Install the package and React DOM in an Electrobun application:
 
 ```sh
-npm install @jugyo/electrobun-reactive-data@0.1.0 electrobun@2.0.1 react@19.1.1 react-dom@19.1.1
+npm install @jugyo/electrobun-reactive-data react-dom
 ```
+
+Version 0.1.0 is verified with Electrobun 2.0.1, React 19.1.1, and React DOM 19.1.1. The package declares the exact Electrobun and React versions as peer dependencies.
 
 ## Get started
 

@@ -4,12 +4,14 @@ This guide covers the public API and operational constraints of Electrobun React
 
 ## Prerequisites
 
-Install the library with its exact Electrobun and React peers, then prepare the Electrobun/Hutch devkit:
+Install the library and React DOM, then prepare the Electrobun/Hutch devkit:
 
 ```sh
-npm install @jugyo/electrobun-reactive-data@0.1.0 electrobun@2.0.1 react@19.1.1 react-dom@19.1.1
+npm install @jugyo/electrobun-reactive-data react-dom
 npx electrobun prepare
 ```
+
+Version 0.1.0 is verified with Electrobun 2.0.1, React 19.1.1, and React DOM 19.1.1. The package declares the exact Electrobun and React versions as peer dependencies.
 
 The package ships TypeScript source for the verified Bun/Vite toolchain. It is not a standalone Node.js server package. External Vite builds must resolve the browser SDK from the prepared devkit:
 
